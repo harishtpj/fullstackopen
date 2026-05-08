@@ -3,16 +3,26 @@ import personService from './services/persons'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
+import Flash from './components/Flash'
+import './index.css'
 
 export default function App() {
   const [persons, setPersons] = useState([])
   const [filter, setFilter] = useState('')
+  const [flashMessage, setFlashMessage] = useState({ msg: null, type: null })
 
   useEffect(() => {
     personService.getAll().then(data => {
       setPersons(data)
     })
   }, [])
+
+  const makeFlashMessage = (msg, type) => {
+    setFlashMessage({ msg, type })
+    setTimeout(() => {
+      setFlashMessage({ msg: null, type: null })
+    }, 5000)
+  }
 
   const addPerson = (newName, newNum) => {
     if (persons.some(person => person.name === newName)) {
@@ -22,8 +32,9 @@ export default function App() {
 
         personService.update(person.id, updatedPerson).then(data => {
           setPersons(persons.map(p => p.id === person.id ? data : p))
+          makeFlashMessage(`${newName} updated successfully`, 'success')
         })
-        
+
         return true
       }
       return false
@@ -37,6 +48,7 @@ export default function App() {
 
     personService.create(newPerson).then(data => {
       setPersons(persons.concat(data))
+      makeFlashMessage(`${newName} added successfully`, 'success')
     })
 
     return true
@@ -44,9 +56,15 @@ export default function App() {
 
   const deletePerson = (name, id) => {
     if (window.confirm(`Delete ${name}?`)) {
-      personService.deletePerson(id).then(() => {
-        setPersons(persons.filter(person => person.id !== id))
-      })
+      personService
+        .deletePerson(id)
+        .then(() => {
+          setPersons(persons.filter(person => person.id !== id))
+          makeFlashMessage(`${name} deleted successfully`, 'success')
+        })
+        .catch(() => {
+          makeFlashMessage(`${name} has already been removed from server`, 'error')
+        })
     }
   }
 
@@ -57,7 +75,8 @@ export default function App() {
   return (
     <div>
       <h2>Phonebook</h2>
-      
+      <Flash msg={flashMessage.msg} type={flashMessage.type} />
+
       <Filter value={filter} onChange={e => setFilter(e.target.value)} />
 
       <h3>Add a new</h3>
