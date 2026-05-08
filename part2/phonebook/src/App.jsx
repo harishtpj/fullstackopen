@@ -1,30 +1,53 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import personService from './services/persons'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
 
 export default function App() {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456', id: 1 },
-    { name: 'Ada Lovelace', number: '39-44-5323523', id: 2 },
-    { name: 'Dan Abramov', number: '12-43-234345', id: 3 },
-    { name: 'Mary Poppendieck', number: '39-23-6423122', id: 4 }
-  ])
+  const [persons, setPersons] = useState([])
   const [filter, setFilter] = useState('')
-  
+
+  useEffect(() => {
+    personService.getAll().then(data => {
+      setPersons(data)
+    })
+  }, [])
+
   const addPerson = (newName, newNum) => {
     if (persons.some(person => person.name === newName)) {
-      alert(`${newName} is already added to phonebook`)
+      if (window.confirm(`${newName} is already added to phonebook, replace the old number with a new one?`)) {
+        const person = persons.find(p => p.name === newName)
+        const updatedPerson = { ...person, number: newNum }
+
+        personService.update(person.id, updatedPerson).then(data => {
+          setPersons(persons.map(p => p.id === person.id ? data : p))
+        })
+        
+        return true
+      }
       return false
     }
 
-    setPersons(persons.concat({ 
-      name: newName, 
+    const newPerson = {
+      name: newName,
       number: newNum,
       id: Math.max(...persons.map(p => p.id)) + 1
-    }))
+    }
+
+    personService.create(newPerson).then(data => {
+      setPersons(persons.concat(data))
+    })
 
     return true
+  }
+
+  const deletePerson = (name, id) => {
+    if (window.confirm(`Delete ${name}?`)) {
+      personService.deletePerson(id).then(() => {
+        setPersons(persons.filter(person => person.id !== id))
+      })
+    }
   }
 
   const filteredPersons = persons.filter(person =>
@@ -41,7 +64,7 @@ export default function App() {
       <PersonForm addPerson={addPerson} />
 
       <h3>Numbers</h3>
-      <Persons persons={filteredPersons} />
+      <Persons persons={filteredPersons} onDelete={deletePerson} />
     </div>
   )
 }
